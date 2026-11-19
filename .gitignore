@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment and secrets (never commit real credentials)
+.env
+.env.local
+.env.*.local
+*.secret
+*.key
+*.pem
+credentials.json
+
+# Logs and runtime output
+*.log
+logs/
+dist/
+build/
+out/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Kiro local state (keep .kiro specs/hooks/steering committed)
+.kiro/local/

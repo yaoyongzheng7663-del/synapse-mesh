@@ -1,0 +1,14 @@
+{
+  "name": "synapse-mesh",
+  "version": "0.1.0",
+  "description": "Agent-first workspace connecting local documents, Kiro Crew agents, and MCP tools into one structured workflow.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "echo \"Scaffold: implement the mesh pipeline in src/\"",
+    "build": "echo \"Build step to be added\"",
+    "test": "echo \"Tests to be added\""
+  },
+  "keywords": ["kiro", "kiroween", "agent", "mcp", "workflow"],
+  "license": "MIT"
+}
