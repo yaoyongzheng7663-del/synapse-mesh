@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Synapse Mesh — Local Demo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d1117; color: #e6edf3; font: 15px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 920px; margin: 0 auto; }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; color: #9aa7b4; }
+  main { max-width: 920px; margin: 0 auto; padding: 20px 24px 60px; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+  button { background: #238636; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+  button.secondary { background: #21262d; color: #e6edf3; }
+  .meta { color: #9aa7b4; font-size: 13px; }
+  section.card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 18px 20px; margin: 16px 0; }
+  section.card h2 { margin: 0 0 12px; font-size: 17px; }
+  .excerpt { border-left: 3px solid #388bfd; padding: 6px 0 6px 14px; margin: 10px 0; }
+  .excerpt .src { color: #7d8590; font-size: 12px; }
+  .outline h3 { margin: 14px 0 6px; font-size: 15px; color: #79c0ff; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  .draft pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
+  .placeholder { color: #d29922; }
+  .tag { display: inline-block; background: #21262d; border: 1px solid #30363d; border-radius: 999px; padding: 2px 10px; font-size: 12px; margin-right: 6px; }
+  .empty { color: #7d8590; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Synapse Mesh</h1>
+  <p>Local demo: local notes → retrieval agent → structuring agent → drafting agent. Runs entirely in your browser on built-in sample material; no external service or model.</p>
+</header>
+<main>
+  <div class="controls">
+    <button id="run">Run the mesh pipeline</button>
+    <button id="reset" class="secondary">Reset</button>
+    <span class="meta" id="meta"></span>
+  </div>
+  <div id="output"></div>
+</main>
+
+<script type="module">
+  import { runMesh } from "../src/mesh/context-mesh.js";
+  import { demoSources, demoGoal } from "../src/demo/data.js";
+
+  const output = document.getElementById("output");
+  const meta = document.getElementById("meta");
+
+  function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+  function render(result) {
+    meta.textContent = `Goal: ${result.goal} · Tools: ${result.enabledTools.join(", ") || "none"}`;
+
+    let html = "";
+
+    html += `<section class="card"><h2>1 · Retrieval — excerpts</h2>`;
+    if (result.excerpts.length === 0) html += `<p class="empty">No excerpts captured.</p>`;
+    result.excerpts.forEach((ex) => {
+      html += `<div class="excerpt"><div class="src">${esc(ex.source)} · ${esc(ex.relevance)}</div><div>${esc(ex.excerpt)}</div></div>`;
+    });
+    html += `</section>`;
+
+    html += `<section class="card outline"><h2>2 · Structuring — outline</h2>`;
+    result.outline.forEach((sec) => {
+      html += `<h3>${esc(sec.heading)}</h3><ul>`;
+      sec.points.forEach((p) => (html += `<li>${esc(p)}</li>`));
+      sec.openQuestions.forEach((q) => (html += `<li class="placeholder">${esc(q)}</li>`));
+      if (!sec.points.length && !sec.openQuestions.length) html += `<li class="empty">Nothing here.</li>`;
+      html += `</ul>`;
+    });
+    html += `</section>`;
+
+    html += `<section class="card draft"><h2>3 · Drafting — output</h2><pre>${esc(result.draft.body)}</pre>`;
+    if (result.draft.placeholders.length) {
+      html += `<div class="placeholder">Placeholders:<ul>`;
+      result.draft.placeholders.forEach((p) => (html += `<li>${esc(p)}</li>`));
+      html += `</ul></div>`;
+    }
+    html += `</section>`;
+
+    output.innerHTML = html;
+  }
+
+  document.getElementById("run").addEventListener("click", async () => {
+    meta.textContent = "Running…";
+    const result = await runMesh({
+      inputFolder: "examples/notes",
+      goal: demoGoal,
+      enabledTools: ["local-notes", "mcp-search"],
+    }, demoSources);
+    render(result);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    output.innerHTML = "";
+    meta.textContent = "";
+  });
+</script>
+</body>
+</html>

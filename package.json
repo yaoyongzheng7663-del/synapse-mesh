@@ -5,9 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "echo \"Scaffold: implement the mesh pipeline in src/\"",
-    "build": "echo \"Build step to be added\"",
-    "test": "echo \"Tests to be added\""
+    "demo": "node src/cli.js",
+    "web": "node server.js",
+    "start": "node server.js"
   },
   "keywords": ["kiro", "kiroween", "agent", "mcp", "workflow"],
   "license": "MIT"

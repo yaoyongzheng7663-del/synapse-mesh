@@ -33,12 +33,37 @@ synapse-mesh/
 
 ## Getting started
 
+Requires Node.js 18+ (no npm install needed; the demo has zero dependencies).
+
+### CLI demo
+
+```bash
+node src/cli.js
+```
+
+Runs retrieval → structuring → drafting on the built-in sample notes and prints
+each stage to the terminal.
+
+### Web demo
+
+```bash
+node server.js
+```
+
+Then open http://localhost:4173/ in a browser and click **Run the mesh
+pipeline**. The three stages render on the page: retrieval excerpts, the
+structured outline, and the drafted output.
+
+### Project layout for a real run
+
 1. Install and sign in to [Kiro](https://kiro.dev/) (IDE, CLI, or Web).
 2. Open this repository in Kiro so the `.kiro` specs, hooks, and steering are loaded.
 3. Place your own source material under an input folder (see `examples/` for the expected shape).
 4. Run the retrieval → structuring → drafting flow and review the assembled output.
 
-> This repository is a working scaffold. The agent prompts, tool adapters, and UI are being filled in during the Kiroween 2026 submission period.
+> The shipped demo uses built-in sample material and local keyword ranking, not an
+> external model. The agent prompts, MCP tool adapters, and hosted deployment are
+> being filled in during the Kiroween 2026 submission period.
 
 ## Built with
 
