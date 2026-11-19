@@ -33,7 +33,11 @@ synapse-mesh/
 
 ## Getting started
 
-Requires Node.js 18+ (no npm install needed; the demo has zero dependencies).
+**Live demo (public, no install needed):**
+https://yaoyongzheng7663-del.github.io/synapse-mesh/
+
+Requires Node.js 18+ only for the local CLI/self-hosted demo (the web demo on
+GitHub Pages has zero dependencies).
 
 ### CLI demo
 
