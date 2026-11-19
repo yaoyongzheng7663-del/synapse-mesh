@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Synapse Mesh — Local Demo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d1117; color: #e6edf3; font: 15px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 920px; margin: 0 auto; }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; color: #9aa7b4; }
+  main { max-width: 920px; margin: 0 auto; padding: 20px 24px 60px; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+  button { background: #238636; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+  button.secondary { background: #21262d; color: #e6edf3; }
+  .meta { color: #9aa7b4; font-size: 13px; }
+  section.card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 18px 20px; margin: 16px 0; }
+  section.card h2 { margin: 0 0 12px; font-size: 17px; }
+  .excerpt { border-left: 3px solid #388bfd; padding: 6px 0 6px 14px; margin: 10px 0; }
+  .excerpt .src { color: #7d8590; font-size: 12px; }
+  .outline h3 { margin: 14px 0 6px; font-size: 15px; color: #79c0ff; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  .draft pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
+  .placeholder { color: #d29922; }
+  .empty { color: #7d8590; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Synapse Mesh</h1>
+  <p>Local demo: local notes → retrieval agent → structuring agent → drafting agent. Runs entirely in your browser on built-in sample material; no external service or model.</p>
+</header>
+<main>
+  <div class="controls">
+    <button id="run">Run the mesh pipeline</button>
+    <button id="reset" class="secondary">Reset</button>
+    <span class="meta" id="meta"></span>
+  </div>
+  <div id="output"></div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var demoSources = [
+    {
+      source: "examples/notes/kickoff.md",
+      text: [
+        "The goal of Synapse Mesh is to turn scattered local notes and drafts into a structured summary without manual copy-paste between tools.",
+        "The workflow should keep the human in review before any draft is used outside the workspace. Agents only read material placed in the configured input folder.",
+        "We need a clear outline before drafting, so the retrieval and structuring steps run separately instead of one broad prompt."
+      ].join("\n\n")
+    },
+    {
+      source: "examples/notes/constraints.md",
+      text: [
+        "The output format for the final draft is still undecided: document, web page, or CLI report.",
+        "The intended audience matters for tone; we have not confirmed whether the summary is for internal use or a public demo.",
+        "Only standard libraries and local document context are used in the demo build; no external credentials are stored in the repository."
+      ].join("\n\n")
+    }
+  ];
+
+  var demoGoal = "Summarize the project notes into a structured outline and draft.";
+  var QUESTION_HINTS = ["?", "open question", "unknown", "missing", "need to", "should we", "who", "what format", "undecided", "not confirmed"];
+
+  function splitPassages(source, text) {
+    return text.split(/\n\s*\n/).map(function (p) { return p.trim(); }).filter(Boolean)
+      .map(function (passage) { return { source: source, passage: passage }; });
+  }
+
+  function score(passage, goalTerms) {
+    var lower = passage.toLowerCase();
+    return goalTerms.reduce(function (acc, term) { return acc + (lower.indexOf(term) !== -1 ? 1 : 0); }, 0);
+  }
+
+  function retrieve(sources, goal) {
+    var goalTerms = goal.toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length > 2; });
+    var passages = sources.flatMap(function (s) { return splitPassages(s.source, s.text); });
+    return passages
+      .map(function (p) { return Object.assign({}, p, { score: score(p.passage, goalTerms) }); })
+      .sort(function (a, b) { return b.score - a.score; })
+      .slice(0, 6)
+      .map(function (p) {
+        return { source: p.source, excerpt: p.passage, relevance: p.score > 0 ? "matched " + p.score + " goal term(s)" : "kept as background" };
+      });
+  }
+
+  function isQuestion(passage) {
+    var lower = passage.toLowerCase();
+    return QUESTION_HINTS.some(function (h) { return lower.indexOf(h) !== -1; });
+  }
+
+  function structure(excerpts) {
+    var context = [], keyPoints = [], openQuestions = [];
+    excerpts.forEach(function (ex) {
+      var passage = ex.excerpt + " (source: " + ex.source + ")";
+      if (isQuestion(ex.excerpt)) openQuestions.push(passage);
+      else if (context.length === 0) context.push(passage);
+      else keyPoints.push(passage);
+    });
+    return [
+      { heading: "Context", points: context, openQuestions: [] },
+      { heading: "Key points", points: keyPoints, openQuestions: [] },
+      { heading: "Open questions", points: [], openQuestions: openQuestions }
+    ];
+  }
+
+  function bullets(items) {
+    if (items.length === 0) return "- _No material captured._";
+    return items.map(function (i) { return "- " + i; }).join("\n");
+  }
+
+  function draft(outline, goal) {
+    var context = outline.find(function (s) { return s.heading === "Context"; });
+    var keyPoints = outline.find(function (s) { return s.heading === "Key points"; });
+    var questions = outline.find(function (s) { return s.heading === "Open questions"; });
+    var placeholders = [];
+    if ((context ? context.points.length : 0) === 0) placeholders.push("Background context was not available in the source material.");
+    if ((keyPoints ? keyPoints.points.length : 0) === 0) placeholders.push("Key supporting points were not available in the source material.");
+    var title = goal.trim() || "Draft from local source material";
+    var body = [
+      "## " + title, "",
+      "### Context", bullets(context ? context.points : []), "",
+      "### Key points", bullets(keyPoints ? keyPoints.points : []), "",
+      "### Open questions", bullets(questions ? questions.openQuestions : []), ""
+    ].join("\n");
+    return { title: title, body: body, placeholders: placeholders };
+  }
+
+  function runMesh() {
+    var excerpts = retrieve(demoSources, demoGoal);
+    var outline = structure(excerpts);
+    var result = draft(outline, demoGoal);
+    return { goal: demoGoal, sources: demoSources, excerpts: excerpts, outline: outline, draft: result, enabledTools: ["local-notes"] };
+  }
+
+  var output = document.getElementById("output");
+  var meta = document.getElementById("meta");
+
+  function esc(s) {
+    return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; });
+  }
+
+  function render(result) {
+    meta.textContent = "Goal: " + result.goal + " · Tools: " + (result.enabledTools.join(", ") || "none");
+    var html = "";
+
+    html += '<section class="card"><h2>1 · Retrieval — excerpts</h2>';
+    if (result.excerpts.length === 0) html += '<p class="empty">No excerpts captured.</p>';
+    result.excerpts.forEach(function (ex) {
+      html += '<div class="excerpt"><div class="src">' + esc(ex.source) + " · " + esc(ex.relevance) + "</div><div>" + esc(ex.excerpt) + "</div></div>";
+    });
+    html += "</section>";
+
+    html += '<section class="card outline"><h2>2 · Structuring — outline</h2>';
+    result.outline.forEach(function (sec) {
+      html += "<h3>" + esc(sec.heading) + "</h3><ul>";
+      sec.points.forEach(function (p) { html += "<li>" + esc(p) + "</li>"; });
+      sec.openQuestions.forEach(function (q) { html += '<li class="placeholder">' + esc(q) + "</li>"; });
+      if (!sec.points.length && !sec.openQuestions.length) html += '<li class="empty">Nothing here.</li>';
+      html += "</ul>";
+    });
+    html += "</section>";
+
+    html += '<section class="card draft"><h2>3 · Drafting — output</h2><pre>' + esc(result.draft.body) + "</pre>";
+    if (result.draft.placeholders.length) {
+      html += '<div class="placeholder">Placeholders:<ul>';
+      result.draft.placeholders.forEach(function (p) { html += "<li>" + esc(p) + "</li>"; });
+      html += "</ul></div>";
+    }
+    html += "</section>";
+
+    output.innerHTML = html;
+  }
+
+  document.getElementById("run").addEventListener("click", function () {
+    meta.textContent = "Running…";
+    render(runMesh());
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    output.innerHTML = "";
+    meta.textContent = "";
+  });
+})();
+</script>
+</body>
+</html>
